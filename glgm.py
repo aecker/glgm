@@ -72,7 +72,7 @@ from numpy import (array, arange, dot, inner, outer, vdot, cov,
                    mean, std, multiply, sum, product, sqrt,
                    log, abs, exp, power, hstack, vstack, append,
                    concatenate, pi, inf, amin, amax, empty,
-                   tanh, any, isnan)
+                   tanh, any, isnan, linalg)
 from scipy.linalg import (norm, inv, det, svd, solve, cholesky)
 from numpy.random import (normal, randn, rand, multivariate_normal,
                           uniform)
@@ -108,13 +108,13 @@ class lm(object):
             raise TypeError('The maximum number of iterations of the EM procedure must be an integer')
         if max_iter_nr <= 0:
             raise ValueError('The maximum number of iterations of the EM procedure must be positive')
-        for kw, val in kwargs.iteritems():
+        for kw, val in kwargs.items():
             self.kw = val
         E_EM, M_EM  = self.Inference, self.Learning 
         logLH, Break = self.logLikelihood, self.break_condition
         self.logLH_delta = kwargs.get('logLH_delta', None)
         
-        for iter_nr in xrange(max_iter_nr):
+        for iter_nr in range(max_iter_nr):
             #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
             # E step
             #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -607,8 +607,8 @@ class mixture(lm):
         """Uniform prior on cluster's centroids"""
         
         _uniform = lambda i, j: uniform(i, j, self.m) 
-        self.mu = array(map(_uniform, amin(self.y, axis=1), \
-                            amax(self.y, axis=1))).reshape(self.m, self.p)
+        self.mu = array(list(map(_uniform, amin(self.y, axis=1), \
+                            amax(self.y, axis=1)))).reshape(self.m, self.p)
 
     def initialize_mu(self):
         """Following a Strategy DP"""
@@ -650,9 +650,9 @@ class mixture(lm):
                 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
                 # Currying CrossProdFactory with inv(self.sigma[i])
                 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-                _CrossProd = self.CrossProdFactory(inv(sigma)) 
+                _CrossProd = self.CrossProdFactory(inv(sigma))
                 Resp_i[:] = LH[:] = pi * const_i * \
-                                    exp(-.5 * array(map(_CrossProd, yCent_i.T)))
+                                    exp(-.5 * array(list(map(_CrossProd, yCent_i.T))))
             #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
             # If no data in the i-th cluster, fixing pi[i] to zero 
             #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -692,7 +692,7 @@ class mixture(lm):
             LHComp.append(pi * vdot(self.yyT - dot(_mu, _mu.T), .5 * inv_sigma))
         self.logLH = sum(LHComp)
         """
-        self.logLH = self.logLH_const + sum(map(log, self.LH_temp.sum(axis = 0))) / self.n
+        self.logLH = self.logLH_const + sum(list(map(log, self.LH_temp.sum(axis = 0)))) / self.n
 
         self.deltalogLH = self.logLH - logLH_old
         self.logLH_tracks.append(self.logLH)
@@ -708,7 +708,7 @@ class mixture(lm):
     # No (WN) noise added
     def InferObs(self):
         mp = self.MAP()
-        return [self.y[:, mp == i] for i in xrange(self.m)]
+        return [self.y[:, mp == i] for i in range(self.m)]
 
     # No (WN) noise added
     def GetNewObs(self, centered = False): pass    
@@ -854,7 +854,7 @@ class mofa(mixture):
                 raise Exception('Specify a positive integer for the nr of latent factors')
             k = [k] * m
         self.k = tuple(k)
-        
+         
         self.commonUniq = commonUniq
         self.typePrior_mu = typePrior_mu
         
@@ -863,7 +863,7 @@ class mofa(mixture):
         # Giving None in input to fa class instances, because 
         # superclass lm just got data y when given in input to mofa 
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        self.fas = [fa(None, ki) for ki in self.k]
+        self.fas = [fa(y, ki) for ki in self.k]
         self.initialize()
 
     def initialize_sigma(self):
@@ -934,7 +934,7 @@ class mofa(mixture):
                 cls.R[:] = diag(dot(Resp * y, y.T) - \
                                 dot(Cmu, dot(Resp * ExyBlock, y.T)))
             except linalg.LinAlgError:
-                print 'Mixture Component %d-th disappeared' % i
+                print('Mixture Component %d-th disappeared' % i)
                 self.pi[i] = 0.
         
         self.postprocess_R()
@@ -1009,7 +1009,7 @@ class icaMacKay(lm):
         # Iterations start
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         while True:
-            for iter_nr in xrange(maxouter_iter_nr):
+            for iter_nr in range(maxouter_iter_nr):
                 for i, x in enumerate(self.y.T):
                     if i == maxinner_iter_nr: break
                     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1034,11 +1034,11 @@ class icaMacKay(lm):
                     self.A += eta * (self.A + outer(z, xi))
                 if any(isnan(self.A.ravel())):
                     if verbose:
-                        print 'Got NaN at iter %d-th! Re-init unmix matrix A...' % (iter_nr + 1)
+                        print('Got NaN at iter %d-th! Re-init unmix matrix A...' % (iter_nr + 1))
                     self.initialize()           
             if any(isnan(self.A.ravel())):
                 if verbose:
-                    print 'Got NaN after %d iterations! Re-start and re-init unmix matrix A...' % self.max_iter_nr
+                    print('Got NaN after %d iterations! Re-start and re-init unmix matrix A...' % self.max_iter_nr)
                 self.initialize()
                 continue
 
